@@ -3,19 +3,38 @@ package com.example.datossinmvvm.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.datossinmvvm.data.Product
 import com.example.datossinmvvm.data.UserDatabase
 import kotlinx.coroutines.launch
+import java.text.DecimalFormat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +62,12 @@ fun ProductScreen() {
         }
     }
 
+    // Función para formatear precio en Soles
+    fun formatPrice(price: Double): String {
+        val decimalFormat = DecimalFormat("#,##0.00")
+        return "S/. ${decimalFormat.format(price)}"
+    }
+
     // Función para limpiar el formulario
     fun clearForm() {
         productName = ""
@@ -60,11 +85,14 @@ fun ProductScreen() {
 
         coroutineScope.launch {
             try {
+                val price = productPrice.toDoubleOrNull() ?: 0.0
+                val quantity = productQuantity.toIntOrNull() ?: 0
+
                 val product = Product(
                     name = productName,
                     description = productDescription,
-                    price = productPrice.toDoubleOrNull() ?: 0.0,
-                    quantity = productQuantity.toIntOrNull() ?: 0
+                    price = price,
+                    quantity = quantity
                 )
 
                 if (editingProduct != null) {
@@ -161,7 +189,8 @@ fun ProductScreen() {
                                 coroutineScope.launch {
                                     productDao.deleteProduct(product)
                                 }
-                            }
+                            },
+                            formatPrice = ::formatPrice
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -200,16 +229,33 @@ fun ProductScreen() {
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = productPrice,
-                            onValueChange = { productPrice = it },
-                            label = { Text("Precio *") },
-                            modifier = Modifier.fillMaxWidth()
+                            onValueChange = {
+                                // Validar que solo se ingresen números y punto decimal
+                                if (it.matches(Regex("^\\d*\\.?\\d*$")) || it.isEmpty()) {
+                                    productPrice = it
+                                }
+                            },
+                            label = { Text("Precio (S/.) *") },
+                            placeholder = { Text("0.00") },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Decimal
+                            )
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = productQuantity,
-                            onValueChange = { productQuantity = it },
+                            onValueChange = {
+                                // Validar que solo se ingresen números
+                                if (it.matches(Regex("^\\d*$")) || it.isEmpty()) {
+                                    productQuantity = it
+                                }
+                            },
                             label = { Text("Cantidad *") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number
+                            )
                         )
                     }
                 },
@@ -243,7 +289,8 @@ fun ProductScreen() {
 fun ProductItem(
     product: Product,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    formatPrice: (Double) -> String
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -262,7 +309,7 @@ fun ProductItem(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "$${product.price}",
+                    text = formatPrice(product.price),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary
