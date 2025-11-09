@@ -5,10 +5,15 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [User::class], version = 1, exportSchema = false)
+@Database(
+    entities = [User::class, Product::class], // Agregar Product aquí
+    version = 2, // Incrementar versión
+    exportSchema = false
+)
 abstract class UserDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
+    abstract fun productDao(): ProductDao // Agregar este método
 
     companion object {
         @Volatile
@@ -20,7 +25,8 @@ abstract class UserDatabase : RoomDatabase() {
                     context.applicationContext,
                     UserDatabase::class.java,
                     "user_database"
-                ).build()
+                ).fallbackToDestructiveMigration() // Agregar esto para migraciones simples
+                    .build()
                 INSTANCE = instance
                 instance
             }
