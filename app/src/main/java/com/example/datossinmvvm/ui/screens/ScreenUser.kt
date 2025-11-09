@@ -5,6 +5,10 @@ import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +32,10 @@ fun ScreenUser() {
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var usersList by remember { mutableStateOf("") }
+    var showUserForm by remember { mutableStateOf(false) }
+    var showUserList by remember { mutableStateOf(false) }
+    var expandedMenu by remember { mutableStateOf(false) }
+
     val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
@@ -38,6 +46,65 @@ fun ScreenUser() {
                         "Gestión de Usuarios - ROOM",
                         fontWeight = FontWeight.Bold
                     )
+                },
+                actions = {
+                    // Botón para Agregar Usuario
+                    IconButton(
+                        onClick = {
+                            showUserForm = true
+                            showUserList = false
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Agregar Usuario")
+                    }
+
+                    // Botón para Listar Usuarios
+                    IconButton(
+                        onClick = {
+                            showUserList = true
+                            showUserForm = false
+                            coroutineScope.launch {
+                                val data = getUsers(userDao)
+                                usersList = data
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.List, contentDescription = "Listar Usuarios")
+                    }
+
+                    // Menú desplegable para más opciones
+                    Box {
+                        IconButton(
+                            onClick = { expandedMenu = true }
+                        ) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Más opciones")
+                        }
+
+                        DropdownMenu(
+                            expanded = expandedMenu,
+                            onDismissRequest = { expandedMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Eliminar Último Usuario") },
+                                onClick = {
+                                    expandedMenu = false
+                                    coroutineScope.launch {
+                                        EliminarUltimoUsuario(userDao)
+                                        val data = getUsers(userDao)
+                                        usersList = data
+                                    }
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Limpiar Lista") },
+                                onClick = {
+                                    expandedMenu = false
+                                    usersList = ""
+                                }
+                            )
+                        }
+                    }
                 }
             )
         }
@@ -50,115 +117,128 @@ fun ScreenUser() {
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Input Fields
-            OutlinedTextField(
-                value = firstName,
-                onValueChange = { firstName = it },
-                label = { Text("Nombre") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = lastName,
-                onValueChange = { lastName = it },
-                label = { Text("Apellido") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Buttons Row 1
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = {
-                        if (firstName.isNotBlank() && lastName.isNotBlank()) {
-                            coroutineScope.launch {
-                                AgregarUsuario(
-                                    user = User(0, firstName, lastName),
-                                    dao = userDao
-                                )
-                                firstName = ""
-                                lastName = ""
-                            }
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
+            // Mostrar formulario para agregar usuarios
+            if (showUserForm) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
-                    Text("Agregar Usuario")
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Agregar Nuevo Usuario",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+
+                        // Input Fields
+                        OutlinedTextField(
+                            value = firstName,
+                            onValueChange = { firstName = it },
+                            label = { Text("Nombre") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = lastName,
+                            onValueChange = { lastName = it },
+                            label = { Text("Apellido") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = {
+                                if (firstName.isNotBlank() && lastName.isNotBlank()) {
+                                    coroutineScope.launch {
+                                        AgregarUsuario(
+                                            user = User(0, firstName, lastName),
+                                            dao = userDao
+                                        )
+                                        firstName = ""
+                                        lastName = ""
+                                        // Actualizar la lista después de agregar
+                                        val data = getUsers(userDao)
+                                        usersList = data
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = firstName.isNotBlank() && lastName.isNotBlank()
+                        ) {
+                            Text("Guardar Usuario")
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Buttons Row 2
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            val data = getUsers(userDao)
-                            usersList = data
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
+            // Mostrar lista de usuarios
+            if (showUserList || usersList.isNotBlank()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
-                    Text("Listar Usuarios")
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Usuarios Registrados:",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = usersList.ifEmpty { "No hay usuarios registrados" },
+                            fontSize = 14.sp
+                        )
+                    }
                 }
-
-                OutlinedButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            EliminarUltimoUsuario(userDao)
-                            val data = getUsers(userDao)
-                            usersList = data
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
+            } else {
+                // Mensaje cuando no hay nada seleccionado
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
-                    Text("Eliminar Último")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Display Users
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "Usuarios Registrados:",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = usersList.ifEmpty { "No hay usuarios registrados" },
-                        fontSize = 14.sp
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Selecciona una opción del menú superior",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Usa los iconos de la barra superior para:\n• Agregar usuarios\n• Listar usuarios\n• Más opciones",
+                            fontSize = 14.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-// Funciones de Base de Datos
+// Funciones de Base de Datos (se mantienen igual)
 suspend fun AgregarUsuario(user: User, dao: UserDao) {
     try {
         dao.insert(user)
